@@ -16,24 +16,25 @@ namespace ConsoleApp1
             if (commit == null) { return 0; }
 
             var numberOfLines = 0;
-            if (commit.Parents.Any())
+
+            //Take only left branch (main parent's full number of lines) + the change from the right parent
+            var parentCommit1 = commit.Parents.ElementAtOrDefault(0);
+            var patch1 = repo.Compare(commit, parentCommit1);
+            numberOfLines += ComputeNumberOfLines(
+                patch1,
+                parentCommit1);
+
+            //if the left patch contains no changes, it means that the changes from patch2 are already contained in patch1.. I think..
+            if (patch1.LinesAdded != 0 || patch1.LinesDeleted != 0)
             {
-                foreach (var parentCommit in commit.Parents)
+                //right branch contribution
+                var parentCommit2 = commit.Parents.ElementAtOrDefault(1);
+                if (parentCommit2 != null)
                 {
-                    var patch = repo.Compare(commit, parentCommit);
-                    if (patch.LinesAdded != 0 || patch.LinesDeleted != 0)
-                        numberOfLines += ComputeNumberOfLines(
-                            patch,
-                            parentCommit);
+                    var patch2 = repo.Compare(commit, parentCommit2);
+                    numberOfLines += (patch2.LinesAdded - patch2.LinesDeleted);
                 }
             }
-            else
-            {
-                numberOfLines += ComputeNumberOfLines(
-                    repo.Compare(commit, null),
-                    null);
-            }
-
             int ComputeNumberOfLines(Patch patch, Commit parentCommit) => (patch.LinesAdded - patch.LinesDeleted) + repo.ComputeNumberOfLines(parentCommit);
 
             return numberOfLines;
@@ -55,8 +56,8 @@ namespace ConsoleApp1
         {
             public void TestMethod()
             {
-                //var path = "E:/git/borkedGit/";
-                var path = "E:/git/D3DRnD/TestApp1";
+                const string path = "E:/git/borkedGit/";
+                //const string path = "E:/git/D3DRnD/TestApp1";
                 var repo = new Repository(path);
                 var info = repo.Info;
                 var startCommit = repo.Commits.FirstOrDefault(o => o.Sha.Equals("9e495a116e77f9a32f4f77a03d8b3713d8aa3cca")) as Commit;
@@ -82,14 +83,6 @@ namespace ConsoleApp1
                 //var patchA_ = Compare(A, null);
 
                 //var patchAB = Compare(A, B);
-
-                var A = repo.Lookup("bda6e30c17c830f56e6b188b983b14d15cc8c4f2") as Commit;
-                var B = repo.Lookup("95294c53e8b81ba6d6d13f03ba514cf94976d86c") as Commit;
-                var C = repo.Lookup("6a63df1c88c695494764df3affc63150476e71f0") as Commit;
-
-                var patchA = repo.Compare(A, B);
-                var patcha = Compare(A, B);
-                var patchB = repo.Compare(A, C);
 
                 var list = new List<CommitWithNumber>();
                 foreach (var commit in repo.Commits.OrderByDescending(o => o.Author.When))
@@ -123,8 +116,7 @@ namespace ConsoleApp1
                         .Append("|")
                         .Append(list[i2].NumberOfLines)
                         .Append("|")
-                        .Append(list[i2].Commit.MessageShort)
-                        .AppendLine();
+                        .AppendLine(list[i2].Commit.MessageShort);
                 }
 
                 using (var file = File.Create("log.txt"))
@@ -132,27 +124,6 @@ namespace ConsoleApp1
                 {
                     writer.Write(sb.ToString());
                 }
-
-                //foreach (var commit in repo.Commits)
-                //{
-                //    var lineNumber = repo.ComputeNumberOfLines(commit);
-                //    dict[commit.Sha].NumberOfLines = lineNumber;
-                //}
-
-                //Compute(startCommit);
-
-                //void Compute(Commit startingCommit)
-                //{
-                //    foreach (var parentCommit in startingCommit.Parents)
-                //    {
-                //        var patch = repo.Diff.Compare<Patch>(parentCommit.Tree, startCommit.Tree);
-                //        i += patch.LinesAdded;
-                //        i -= patch.LinesDeleted;
-
-                //        if (parentCommit != null)
-                //            Compute(parentCommit);
-                //    }
-                //}
                 Patch Compare(Commit newC, Commit oldC) => repo.Diff.Compare<Patch>(oldC?.Tree, newC?.Tree);
             }
 
