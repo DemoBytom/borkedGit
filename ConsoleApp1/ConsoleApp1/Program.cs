@@ -36,7 +36,7 @@ namespace ConsoleApp1
             }
         }
 
-        private static List<int> values = new List<int>();
+        private static readonly List<int> values = new List<int>();
         private static int maxValue = 0;
         private static int oneNth = 0;
 
@@ -47,8 +47,8 @@ namespace ConsoleApp1
                 ? linesNumber
                 : maxValue;
 
-            var numberOfLines = 25;
-            var lineLength = 100;
+            const int numberOfLines = 25;
+            const int lineLength = 100;
 
             var nth = Math.Max(values.Count / numberOfLines, 1);
 
@@ -56,7 +56,9 @@ namespace ConsoleApp1
 
             SetCursorPosition(0, 0);
             var sb = new StringBuilder()
-                .AppendLine($"Calculating statistics for {repoName} repository.")
+                .Append("Calculating statistics for ")
+                .Append(repoName)
+                .AppendLine(" repository.")
                 .AppendLine();
             for (var i = 0;
                 i < numberOfLines && i < values.Count;

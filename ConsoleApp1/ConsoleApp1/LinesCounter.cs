@@ -9,7 +9,7 @@ namespace ConsoleApp1
 {
     internal class LinesCounter : IDisposable
     {
-        private static ConcurrentDictionary<string, int> _calculatedLengths = new ConcurrentDictionary<string, int>();
+        private static readonly ConcurrentDictionary<string, (int lineNumber, int added, int deleted)> _calculatedLengths = new ConcurrentDictionary<string, (int, int, int)>();
         private readonly Repository _repo;
         internal static EventHandler<LinesCounterEventArgs> Output;
 
@@ -43,9 +43,9 @@ namespace ConsoleApp1
 
         private Patch Compare(Commit newCommit, Commit oldCommit) => _repo.Diff.Compare<Patch>(oldCommit?.Tree, newCommit?.Tree);
 
-        private int ComputeNumberOfLines(Commit commit)
+        private (int linesNumber, int added, int deleted) ComputeNumberOfLines(Commit commit)
         {
-            if (commit == null) { return 0; }
+            if (commit == null) { return (0, 0, 0); }
             if (_calculatedLengths.TryGetValue(commit.Sha, out var calculated)) { return calculated; }
 
             var numberOfLines = 0;
@@ -57,10 +57,10 @@ namespace ConsoleApp1
                 patch1,
                 parentCommit1);
 
-            _calculatedLengths.TryAdd(commit.Sha, numberOfLines);
-            return numberOfLines;
+            _calculatedLengths.TryAdd(commit.Sha, (numberOfLines, patch1.LinesAdded, patch1.LinesDeleted));
+            return (numberOfLines, patch1.LinesAdded, patch1.LinesDeleted);
 
-            int Compute(Patch patch, Commit parentCommit) => (patch.LinesAdded - patch.LinesDeleted) + ComputeNumberOfLines(parentCommit);
+            int Compute(Patch patch, Commit parentCommit) => (patch.LinesAdded - patch.LinesDeleted) + ComputeNumberOfLines(parentCommit).linesNumber;
         }
 
         private List<CommitWithNumber> GetStats()
@@ -68,13 +68,15 @@ namespace ConsoleApp1
             var list = new List<CommitWithNumber>();
             foreach (var commit in _repo.Commits.OrderByDescending(o => o.Author.When))
             {
-                var computed = ComputeNumberOfLines(commit);
-                Output?.Invoke(this, new LinesCounterEventArgs(commit.Sha, computed));
+                var (linesNumber, added, deleted) = ComputeNumberOfLines(commit);
+                Output?.Invoke(this, new LinesCounterEventArgs(commit.Sha, linesNumber));
 
                 list.Add(
                     new CommitWithNumber(
                         commit,
-                        computed));
+                        linesNumber,
+                        added,
+                        deleted));
             }
             return list;
         }
@@ -100,6 +102,10 @@ namespace ConsoleApp1
                     .Append("|")
                     .Append(list[i2].NumberOfLines)
                     .Append("|")
+                    .Append(list[i2].LinesAdded)
+                    .Append("|")
+                    .Append(list[i2].LinesDeleted)
+                    .Append("|")
                     .AppendLine(list[i2].Commit.MessageShort);
             }
 
@@ -108,29 +114,32 @@ namespace ConsoleApp1
 
         internal class CommitWithNumber
         {
-            public CommitWithNumber(Commit commit, int linesCount)
+            public CommitWithNumber(Commit commit, int linesCount, int linesAdded, int linesDeleted)
             {
                 Commit = commit;
                 NumberOfLines = linesCount;
+                LinesAdded = linesAdded;
+                LinesDeleted = linesDeleted;
             }
 
             public Commit Commit { get; }
             public int NumberOfLines { get; }
+            public int LinesAdded { get; }
+            public int LinesDeleted { get; }
 
             public override bool Equals(object obj)
             {
                 var number = obj as CommitWithNumber;
-                return number != null &&
-                       EqualityComparer<Commit>.Default.Equals(Commit, number.Commit) &&
-                       NumberOfLines == number.NumberOfLines;
+                return number != null
+                       && EqualityComparer<Commit>.Default.Equals(Commit, number.Commit)
+                       && NumberOfLines == number.NumberOfLines;
             }
 
             public override int GetHashCode()
             {
                 var hashCode = -887049516;
-                hashCode = hashCode * -1521134295 + EqualityComparer<Commit>.Default.GetHashCode(Commit);
-                hashCode = hashCode * -1521134295 + NumberOfLines.GetHashCode();
-                return hashCode;
+                hashCode = (hashCode * -1521134295) + EqualityComparer<Commit>.Default.GetHashCode(Commit);
+                return (hashCode * -1521134295) + NumberOfLines.GetHashCode();
             }
         }
 
@@ -152,8 +161,12 @@ namespace ConsoleApp1
 
         private bool disposedValue = false;
 
-        public void Dispose() =>
+        /// <summary>Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.</summary>
+        public void Dispose()
+        {
             Dispose(true);
+            GC.SuppressFinalize(this);
+        }
 
         protected virtual void Dispose(bool disposing)
         {
