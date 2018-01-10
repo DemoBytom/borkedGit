@@ -32,7 +32,7 @@ namespace ConsoleApp1
                     writer.Write(LinesCounter.GetStatsFormatted(path));
                 }
                 sw.Stop();
-                WriteLine($"Finished calculating statistics for {repoName} after {sw.Elapsed}. Report written to {finalFilePath}");
+                Write($"Finished calculating statistics for {repoName} after {sw.Elapsed}. Report written to {finalFilePath}");
             }
         }
 

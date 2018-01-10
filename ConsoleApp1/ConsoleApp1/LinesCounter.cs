@@ -50,28 +50,17 @@ namespace ConsoleApp1
 
             var numberOfLines = 0;
 
-            //Take only left branch (main parent's full number of lines) + the change from the right parent
+            //Take only left branch (main parent's full number of lines). Don't code at 3 am or you gonna make mistakes >.>'
             var parentCommit1 = commit.Parents.ElementAtOrDefault(0);
             var patch1 = Compare(commit, parentCommit1);
             numberOfLines += Compute(
                 patch1,
                 parentCommit1);
 
-            //if the left patch contains no changes, it means that the changes from patch2 are already contained in patch1.. I think..
-            if (patch1.LinesAdded != 0 || patch1.LinesDeleted != 0)
-            {
-                //right branch contribution
-                var parentCommit2 = commit.Parents.ElementAtOrDefault(1);
-                if (parentCommit2 != null)
-                {
-                    var patch2 = Compare(commit, parentCommit2);
-                    numberOfLines += (patch2.LinesAdded - patch2.LinesDeleted);
-                }
-            }
-            int Compute(Patch patch, Commit parentCommit) => (patch.LinesAdded - patch.LinesDeleted) + ComputeNumberOfLines(parentCommit);
-
             _calculatedLengths.TryAdd(commit.Sha, numberOfLines);
             return numberOfLines;
+
+            int Compute(Patch patch, Commit parentCommit) => (patch.LinesAdded - patch.LinesDeleted) + ComputeNumberOfLines(parentCommit);
         }
 
         private List<CommitWithNumber> GetStats()
