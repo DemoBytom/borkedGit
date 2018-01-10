@@ -11,7 +11,7 @@ namespace ConsoleApp1
     {
         private static ConcurrentDictionary<string, int> _calculatedLengths = new ConcurrentDictionary<string, int>();
         private readonly Repository _repo;
-        internal static EventHandler<StringEventArgs> Output;
+        internal static EventHandler<LinesCounterEventArgs> Output;
 
         protected LinesCounter(in string path) => _repo = new Repository(path);
 
@@ -71,7 +71,6 @@ namespace ConsoleApp1
             int Compute(Patch patch, Commit parentCommit) => (patch.LinesAdded - patch.LinesDeleted) + ComputeNumberOfLines(parentCommit);
 
             _calculatedLengths.TryAdd(commit.Sha, numberOfLines);
-            Output?.Invoke(this, new StringEventArgs($"{commit.Sha} | {numberOfLines}"));
             return numberOfLines;
         }
 
@@ -80,10 +79,13 @@ namespace ConsoleApp1
             var list = new List<CommitWithNumber>();
             foreach (var commit in _repo.Commits.OrderByDescending(o => o.Author.When))
             {
+                var computed = ComputeNumberOfLines(commit);
+                Output?.Invoke(this, new LinesCounterEventArgs(commit.Sha, computed));
+
                 list.Add(
                     new CommitWithNumber(
                         commit,
-                        ComputeNumberOfLines(commit)));
+                        computed));
             }
             return list;
         }
@@ -143,11 +145,18 @@ namespace ConsoleApp1
             }
         }
 
-        internal class StringEventArgs : EventArgs
+        internal class LinesCounterEventArgs : EventArgs
         {
-            public StringEventArgs(string message) => Message = message;
+            public LinesCounterEventArgs(string sha, int lineNumber)
+            {
+                Sha = sha;
+                LineNumber = lineNumber;
+            }
 
-            public string Message { get; }
+            public string Message => $"{Sha} | {LineNumber}";
+            public string Sha { get; }
+
+            public int LineNumber { get; }
         }
 
         #region IDisposable Support
