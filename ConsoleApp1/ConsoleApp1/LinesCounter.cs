@@ -86,7 +86,7 @@ namespace ConsoleApp1
             var list = GetStats();
 
             var sb = new StringBuilder();
-            sb.AppendLine("SHA|Date|Author|Lines count|Message");
+            sb.AppendLine("SHA|Date|Author|Lines count|Lines added|Lines deleted|Message");
 
             for (
                 var i2 = list.Count - 1;

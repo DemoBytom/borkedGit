@@ -24,15 +24,20 @@ namespace ConsoleApp1
                 WriteLine($"Calculating statistics for {repoName} repository.");
                 var repo = new Repository(path);
 
-                LinesCounter.Output += (sender, e) => WriteGraph(e.LineNumber, repoName);
+                LinesCounter.Output += WriteOutput;
 
                 using (var file = File.Create(finalFilePath))
                 using (var writer = new StreamWriter(file))
                 {
                     writer.Write(LinesCounter.GetStatsFormatted(path));
                 }
+
+                LinesCounter.Output -= WriteOutput;
                 sw.Stop();
                 Write($"Finished calculating statistics for {repoName} after {sw.Elapsed}. Report written to {finalFilePath}");
+                Clear();
+
+                void WriteOutput(object sender, LinesCounter.LinesCounterEventArgs e) => WriteGraph(e.LineNumber, repoName);
             }
         }
 
